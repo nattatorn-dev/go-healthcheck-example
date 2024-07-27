@@ -41,7 +41,13 @@ func (s *HealthService) CheckAllHealth() {
 			log.Printf("Recovered from panic: %v", r)
 		}
 	}()
+
+	checked := make(map[string]bool)
+
 	for name, pair := range s.readinessCheckers {
+		if _, alreadyChecked := checked[name]; alreadyChecked {
+			continue
+		}
 		status := pair.Checker.CheckHealth()
 		s.store.SetStatus(name+"-readiness", entities.HealthStatusEntry{
 			Name:     name,
@@ -49,8 +55,21 @@ func (s *HealthService) CheckAllHealth() {
 			Error:    getErrorMessage(status.Error),
 			Duration: status.Duration,
 		})
+		if _, isLiveness := s.livenessCheckers[name]; isLiveness {
+			s.store.SetStatus(name+"-liveness", entities.HealthStatusEntry{
+				Name:     name,
+				Status:   status.Status,
+				Error:    getErrorMessage(status.Error),
+				Duration: status.Duration,
+			})
+			checked[name] = true
+		}
 	}
+
 	for name, pair := range s.livenessCheckers {
+		if _, alreadyChecked := checked[name]; alreadyChecked {
+			continue
+		}
 		status := pair.Checker.CheckHealth()
 		s.store.SetStatus(name+"-liveness", entities.HealthStatusEntry{
 			Name:     name,
@@ -69,14 +88,14 @@ func (s *HealthService) GetLivenessStatuses() []entities.HealthStatusEntry {
 	return s.store.GetStatusesByType("liveness")
 }
 
-func (s *HealthService) startChecker(name string, pair checkerConfigPair) {
+func (s *HealthService) startChecker(name string, pair checkerConfigPair, checkType string) {
 	ticker := time.NewTicker(pair.Config.Interval)
 	go func() {
 		for {
 			<-ticker.C
-			log.Printf("Performing scheduled health check for %s", name)
+			log.Printf("Performing scheduled health check for %s (%s)", name, checkType)
 			status := pair.Checker.CheckHealth()
-			s.store.SetStatus(name+"-liveness", entities.HealthStatusEntry{
+			s.store.SetStatus(name+"-"+checkType, entities.HealthStatusEntry{
 				Name:     name,
 				Status:   status.Status,
 				Error:    getErrorMessage(status.Error),
@@ -88,11 +107,24 @@ func (s *HealthService) startChecker(name string, pair checkerConfigPair) {
 
 func (s *HealthService) StartBackgroundCheck() {
 	s.CheckAllHealth() // Perform an initial check immediately
+
+	checked := make(map[string]bool)
+
 	for name, pair := range s.readinessCheckers {
-		s.startChecker(name, pair)
+		if _, alreadyChecked := checked[name]; alreadyChecked {
+			continue
+		}
+		s.startChecker(name, pair, "readiness")
+		if _, isLiveness := s.livenessCheckers[name]; isLiveness {
+			checked[name] = true
+		}
 	}
+
 	for name, pair := range s.livenessCheckers {
-		s.startChecker(name, pair)
+		if _, alreadyChecked := checked[name]; alreadyChecked {
+			continue
+		}
+		s.startChecker(name, pair, "liveness")
 	}
 }
 

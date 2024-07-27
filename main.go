@@ -54,15 +54,14 @@ func main() {
 
 	// Initialize service
 	healthService := services.NewHealthService(healthStore)
-	healthService.RegisterReadiness("Redis", redisHealth, redisConfig)
-	healthService.RegisterReadiness("Kafka", kafkaHealth, kafkaConfig)
-	healthService.RegisterReadiness("Database SQL", dbHealth, dbConfig)
-	healthService.RegisterReadiness("External API", externalAPI, externalAPIConfig)
-
-	healthService.RegisterLiveness("Redis", redisHealth, redisConfig)
-	healthService.RegisterLiveness("Kafka", kafkaHealth, kafkaConfig)
-	healthService.RegisterLiveness("Database SQL", dbHealth, dbConfig)
-	healthService.RegisterLiveness("External API", externalAPI, externalAPIConfig)
+	healthService.RegisterReadiness("REDIS", redisHealth, redisConfig)
+	healthService.RegisterReadiness("KAFKA", kafkaHealth, kafkaConfig)
+	healthService.RegisterReadiness("DATABASE", dbHealth, dbConfig)
+	healthService.RegisterReadiness("EXTERNAL_API_1", externalAPI, externalAPIConfig)
+	healthService.RegisterReadiness("EXTERNAL_API_2", externalAPI, externalAPIConfig)
+	healthService.RegisterReadiness("EXTERNAL_API_3", externalAPI, externalAPIConfig)
+	healthService.RegisterReadiness("EXTERNAL_API_4", externalAPI, externalAPIConfig)
+	healthService.RegisterReadiness("EXTERNAL_API_5", externalAPI, externalAPIConfig)
 
 	// Start background worker for health checks
 	healthService.StartBackgroundCheck()
